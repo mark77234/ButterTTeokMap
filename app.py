@@ -1,13 +1,9 @@
 from __future__ import annotations
 
 import hashlib
-import http.server
 import json
 import os
-import tempfile
-import threading
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Any
 from urllib.parse import quote
 
@@ -18,46 +14,6 @@ from dotenv import load_dotenv
 
 
 load_dotenv()
-
-# ---------------------------------------------------------------------------
-# 로컬 파일 서버 (Kakao Maps SDK 도메인 인증 우회)
-# components.html()은 srcdoc iframe을 사용해 origin이 null이 되므로
-# Kakao 서버의 도메인 검증을 통과하지 못합니다.
-# ---------------------------------------------------------------------------
-_MAP_FILE_SERVER_PORT = 18510  # 카카오 콘솔에 http://127.0.0.1:18510 등록 필요
-_MAP_TMP_DIR = Path(tempfile.gettempdir()) / f"kakao_map_{_MAP_FILE_SERVER_PORT}"
-_MAP_TMP_DIR.mkdir(exist_ok=True)
-
-
-def _ensure_map_server() -> None:
-    """파일 서버를 최초 1회만 시작합니다."""
-
-    class _ReuseHTTPServer(http.server.HTTPServer):
-        allow_reuse_address = True
-
-    class _Handler(http.server.SimpleHTTPRequestHandler):
-        def __init__(self, *args, **kwargs):
-            super().__init__(*args, directory=str(_MAP_TMP_DIR), **kwargs)
-
-        def log_message(self, *args):
-            pass
-
-    try:
-        server = _ReuseHTTPServer(("127.0.0.1", _MAP_FILE_SERVER_PORT), _Handler)
-        threading.Thread(target=server.serve_forever, daemon=True).start()
-    except OSError:
-        # 이미 같은 포트에서 동작 중인 서버 재사용
-        pass
-
-
-_ensure_map_server()
-
-
-def _serve_map_html(html: str) -> str:
-    name = hashlib.md5(html.encode()).hexdigest() + ".html"
-    (_MAP_TMP_DIR / name).write_text(html, encoding="utf-8")
-    return f"http://127.0.0.1:{_MAP_FILE_SERVER_PORT}/{name}"
-
 
 APP_TITLE = "버터떡지도"
 PRIMARY_TERMS = ["버터떡", "버터떡 판매점", "버터떡 디저트", "버터 모찌"]
@@ -637,9 +593,7 @@ def _render_kakao_map_html(
           padding: 8px 10px;
           gap: 6px;
         }
-        .brand {
-          gap: 8px;
-        }
+        .brand { gap: 8px; }
         .brand-icon {
           width: 34px;
           height: 34px;
@@ -657,9 +611,7 @@ def _render_kakao_map_html(
           padding-bottom: 2px;
           scrollbar-width: none;
         }
-        .toolbar-row::-webkit-scrollbar {
-          display: none;
-        }
+        .toolbar-row::-webkit-scrollbar { display: none; }
         .btn {
           flex: 0 0 auto;
           text-align: center;
@@ -675,9 +627,7 @@ def _render_kakao_map_html(
           border-radius: 10px;
         }
         #headerStatus { font-size: 11px; }
-        #badge {
-          display: none;
-        }
+        #badge { display: none; }
         #detail {
           left: 8px;
           right: 8px;
@@ -687,12 +637,8 @@ def _render_kakao_map_html(
           overflow: auto;
           border-radius: 14px;
         }
-        .detail-shell {
-          padding: 10px;
-        }
-        .detail-title {
-          font-size: 17px;
-        }
+        .detail-shell { padding: 10px; }
+        .detail-title { font-size: 17px; }
         .detail-media {
           height: 108px;
           margin-bottom: 10px;
@@ -891,6 +837,13 @@ def _render_kakao_map_html(
           </div>
         `;
         animateCard();
+        const closeBtn = detailEl.querySelector(".close-btn");
+        if (closeBtn) {
+          closeBtn.addEventListener("click", () => {
+            resetFocus();
+            renderIdleCard();
+          }, { once: true });
+        }
       }
 
       function getCurrentPosition() {
@@ -900,11 +853,7 @@ def _render_kakao_map_html(
             return;
           }
           navigator.geolocation.getCurrentPosition(
-            (pos) =>
-              resolve({
-                lat: pos.coords.latitude,
-                lon: pos.coords.longitude
-              }),
+            (pos) => resolve({ lat: pos.coords.latitude, lon: pos.coords.longitude }),
             (err) => reject(new Error(err && err.message ? err.message : "위치 권한을 확인해주세요.")),
             { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
           );
@@ -961,17 +910,6 @@ def _render_kakao_map_html(
             map.panTo(toLatLng(record.place.lat, record.place.lon));
           }
           renderDetailCard(record.place, distanceText);
-          const closeBtn = detailEl.querySelector(".close-btn");
-          if (closeBtn) {
-            closeBtn.addEventListener(
-              "click",
-              () => {
-                resetFocus();
-                renderIdleCard();
-              },
-              { once: true }
-            );
-          }
         }
 
         function showAllRecords() {
@@ -1221,10 +1159,7 @@ header[data-testid="stHeader"] { display: none; }
 div[data-testid="stVerticalBlock"] {
   gap: 0 !important;
 }
-div[data-testid="stIFrame"] {
-  height: 100vh !important;
-}
-div[data-testid="stIFrame"] iframe, iframe {
+iframe {
   width: 100% !important;
   height: 100vh !important;
   border: 0 !important;
@@ -1255,8 +1190,9 @@ div[data-testid="stIFrame"] iframe, iframe {
 
     center_lat, center_lon = _map_center(places)
     html = _render_kakao_map_html(center_lat, center_lon, places, js_key)
-    map_url = _serve_map_html(html)
-    components.iframe(map_url, height=1600, scrolling=False)
+
+    # components.html()로 직접 렌더링 (로컬 파일 서버 불필요)
+    components.html(html, height=1000, scrolling=False)
 
 
 if __name__ == "__main__":
