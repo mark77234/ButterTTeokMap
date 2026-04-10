@@ -91,7 +91,12 @@ class Place:
     image_url: str | None = None
 
 
-def _http_get_json(url: str, *, params: dict[str, Any] | None = None, headers: dict[str, str] | None = None) -> Any:
+def _http_get_json(
+    url: str,
+    *,
+    params: dict[str, Any] | None = None,
+    headers: dict[str, str] | None = None,
+) -> Any:
     resp = requests.get(url, params=params, headers=headers, timeout=20)
     resp.raise_for_status()
     return resp.json()
@@ -100,7 +105,9 @@ def _http_get_json(url: str, *, params: dict[str, Any] | None = None, headers: d
 def _kakao_headers() -> dict[str, str]:
     rest_key = os.getenv("KAKAO_REST_API_KEY")
     if not rest_key:
-        raise RuntimeError("KAKAO_REST_API_KEY가 설정되어 있지 않습니다. `.env`에 추가해주세요.")
+        raise RuntimeError(
+            "KAKAO_REST_API_KEY가 설정되어 있지 않습니다. `.env`에 추가해주세요."
+        )
     return {"Authorization": f"KakaoAK {rest_key}"}
 
 
@@ -111,7 +118,9 @@ def _estimate_buttertteok_price(name: str, category: str | None) -> str:
     return f"{price:,}원 (추정가)"
 
 
-def _kakao_keyword_search(lat: float, lon: float, radius_m: int, term: str, *, size: int = 12) -> list[Place]:
+def _kakao_keyword_search(
+    lat: float, lon: float, radius_m: int, term: str, *, size: int = 12
+) -> list[Place]:
     radius_m = max(0, min(int(radius_m), 20000))
     data = _http_get_json(
         "https://dapi.kakao.com/v2/local/search/keyword.json",
@@ -173,7 +182,9 @@ def _kakao_image_search_url(query: str) -> str | None:
 
 
 @st.cache_data(show_spinner=False, ttl=43200)
-def _lookup_place_image(name: str, category: str | None, address: str | None) -> str | None:
+def _lookup_place_image(
+    name: str, category: str | None, address: str | None
+) -> str | None:
     region = ((address or "").strip().split(" ")[0] if address else "").strip()
     queries = [
         f"{name} 버터떡",
@@ -284,7 +295,9 @@ def _current_location_icon_data_uri() -> str:
     return "data:image/svg+xml;charset=UTF-8," + quote(svg)
 
 
-def _render_kakao_map_html(center_lat: float, center_lon: float, places: list[Place], js_key: str) -> str:
+def _render_kakao_map_html(
+    center_lat: float, center_lon: float, places: list[Place], js_key: str
+) -> str:
     payload = json.dumps(
         [
             {
@@ -303,7 +316,9 @@ def _render_kakao_map_html(center_lat: float, center_lon: float, places: list[Pl
         ensure_ascii=False,
     )
     bread_icon_json = json.dumps(_bread_icon_data_uri(), ensure_ascii=False)
-    current_icon_json = json.dumps(_current_location_icon_data_uri(), ensure_ascii=False)
+    current_icon_json = json.dumps(
+        _current_location_icon_data_uri(), ensure_ascii=False
+    )
 
     template = """
 <!DOCTYPE html>
@@ -737,7 +752,7 @@ def _render_kakao_map_html(center_lat: float, center_lon: float, places: list[Pl
 
     <div id="detail"></div>
 
-    <script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=__JS_KEY__&autoload=false&libraries=services"></script>
+    <script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=__JS_KEY__&autoload=false&libraries=services&https=true"></script>
     <script>
       const APP_TITLE = "__APP_TITLE__";
       const STORE_NEARBY_RADIUS_M = 5000;
@@ -1178,7 +1193,12 @@ def _render_kakao_map_html(center_lat: float, center_lon: float, places: list[Pl
 
 
 def main() -> None:
-    st.set_page_config(page_title=APP_TITLE, page_icon="🍞", layout="wide", initial_sidebar_state="collapsed")
+    st.set_page_config(
+        page_title=APP_TITLE,
+        page_icon="🍞",
+        layout="wide",
+        initial_sidebar_state="collapsed",
+    )
     st.markdown(
         """
 <style>
@@ -1217,7 +1237,9 @@ div[data-testid="stIFrame"] iframe, iframe {
 
     js_key = os.getenv("KAKAO_JAVASCRIPT_KEY")
     if not js_key:
-        st.error("KAKAO_JAVASCRIPT_KEY가 설정되어 있지 않습니다. `.env`에 추가해주세요.")
+        st.error(
+            "KAKAO_JAVASCRIPT_KEY가 설정되어 있지 않습니다. `.env`에 추가해주세요."
+        )
         return
 
     rest_key = os.getenv("KAKAO_REST_API_KEY")
